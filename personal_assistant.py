@@ -4,12 +4,7 @@ from datetime import datetime
 
 class MainManager:
     def __init__(self):
-        notes = []
-        tasks = []
-        phonebook_data = []
-        finance_data = []
-
-        self.data = {'notes': notes, 'tasks': tasks}
+        self.data = []
 
     def save_file(self, kind_data, kind_file, path=None):
         """ Экспорт файла """
@@ -18,9 +13,9 @@ class MainManager:
 
         if kind_file == 'json':
             with open(path, 'w') as f:
-                json.dump(self.data[kind_data], f)
+                json.dump(self.data, f)
         elif kind_file == 'csv':
-            df = pd.DataFrame(self.data[kind_data])
+            df = pd.DataFrame(self.data)
             df.to_csv(path)
         else:
             raise Exception('Недоступный формат вывода файла. Выберите пожалуйста json или csv.')
@@ -30,12 +25,12 @@ class MainManager:
         if path is None:
             path = os.path.join('data', f'{kind_data}.json')
         with open(path) as f:
-            self.data[kind_data] = json.load(f)
+            self.data = json.load(f)
 
-    def find_data(self, kind_data, key_dict, key_result):
+    def find_data(self, key_dict, key_result):
         """ Поиск данных в хранилище по ключу """
         try:
-            data_res = [i for i in self.data[kind_data] if i[key_dict] == key_result]
+            data_res = [i for i in self.data if i[key_dict] == key_result]
             data_res = data_res
             return data_res
         except IndexError:
@@ -43,13 +38,13 @@ class MainManager:
 
     def delete_data(self, kind_data, key_dict, key_result):
         """ Удаление данных по ключу """
-        data_res = self.find_data(kind_data, key_dict, key_result)
-        index_list = [self.data[kind_data].index(data) for data in data_res]
+        data_res = self.find_data(key_dict, key_result)
+        index_list = [self.data.index(data) for data in data_res]
 
         for i in index_list:
-            self.data[kind_data].pop(i)
+            self.data.pop(i)
 
-        self.save_file(kind_data, self.data[kind_data])
+        self.save_file(kind_data, self.data)
 
 
 class Note:
@@ -61,10 +56,10 @@ class Note:
         timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S") # дата создания заметки
 
         # Установка id
-        if len(self.manager.data['notes']) == 0:
+        if len(self.manager.data) == 0:
             id_note = 1
         else:
-            id_note = self.manager.data['notes'][-1]['id'] + 1
+            id_note = self.manager.data[-1]['id'] + 1
 
         # Заполнение данных
         note = {
@@ -73,23 +68,23 @@ class Note:
             'content': str(content),
             'timestamp': str(timestamp)
         }
-        self.manager.data['notes'].append(note) # Сохранение в базе
+        self.manager.data.append(note) # Сохранение в базе
 
         print(f'Заметка {id_note} успешно создана!\n')
 
     def show_list_notes(self):
         """ Вывод списка заметок """
-        if len(self.manager.data['notes']) == 0:
+        if len(self.manager.data) == 0:
             print('Список заметок пуст. Создайте новую заметку прямо сейчас!')
         else:
             print('Список заметок:')
-            for note in self.manager.data['notes']:
+            for note in self.manager.data:
                 print(f'Заметка {note["id"]} — {note["title"]} — {note["timestamp"]}')
             print('\n') # просто отступ
 
     def print_note(self, id_note):
         """ Вывод определенной заметки """
-        note_res = self.manager.find_data('notes', 'id', id_note)[0]
+        note_res = self.manager.find_data('id', id_note)[0]
 
         print(f'Заметка {id_note}')
         print(f"\"{note_res['title']}\"")
@@ -99,7 +94,7 @@ class Note:
     def update_note(self, id_note, type_change, new_data):
         """ Обновление заметки """
         # Нахождение заметки
-        note = self.manager.find_data('notes', 'id', id_note)[0]
+        note = self.manager.find_data('id', id_note)[0]
 
         # Обновление данных
         note[type_change] = new_data
@@ -142,10 +137,10 @@ class Task:
             raise ValueError('Формат даты указан неверно. Правильный: ДД-ММ-ГГГГ')
 
         # Установка id
-        if len(self.manager.data['tasks']) == 0:
+        if len(self.manager.data) == 0:
             id_task = 1
         else:
-            id_task = self.manager.data['tasks'][-1]['id'] + 1
+            id_task = self.manager.data[-1]['id'] + 1
 
         # Создание таска
         task = {
@@ -156,18 +151,18 @@ class Task:
             'priority': priority,
             'due_date': due_date
         }
-        self.manager.data['tasks'].append(task)
+        self.manager.data.append(task)
         print(f'Задача {id_task} успешно добавлена!\n')
 
     def show_list_tasks(self):
         """ Вывод списка задач """
-        if self.manager.data['tasks']:
+        if self.manager.data:
             print('Список поставленных задач:')
-            for i, task in enumerate(self.manager.data['tasks']):
+            for i, task in enumerate(self.manager.data):
                 print('Задача', task['id'])
                 print(f'\"{task['title']}\"')
                 print('Срок:' , task['due_date'])
-                if i < len(self.manager.data['tasks']) - 1:
+                if i < len(self.manager.data) - 1:
                     print('===============================')
             print('\n')
         else:
@@ -175,14 +170,14 @@ class Task:
 
     def mark_done(self, id_task):
         """ Отметка выполнения задачи """
-        task = self.manager.find_data('tasks', 'id', id_task)[0]
+        task = self.manager.find_data('id', id_task)[0]
         task['done'] = True
 
         print(f'Задача {id_task} успешно отмечена как выполненная!\n')
 
     def update_task(self, id_task, kind_change, new_data):
         """ Обновление данных задачи """
-        task = self.manager.find_data('tasks', 'id', id_task)[0]
+        task = self.manager.find_data('id', id_task)[0]
         task[kind_change] = new_data
 
         print(f'Задача {id_task} успешно обновлена!\n')
