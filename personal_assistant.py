@@ -11,12 +11,19 @@ class MainManager:
 
         self.data = {'notes': notes}
 
-    def save_file(self, kind_data, path=None):
+    def save_file(self, kind_data, kind_file, path=None):
         """ Экспорт файла """
         if path is None:
-            path = os.path.join('data', f'{kind_data}.json')
-        with open(path, 'w') as f:
-            json.dump(self.data[kind_data], f)
+            path = os.path.join('data', f'{kind_data}.{kind_file}')
+
+        if kind_file == 'json':
+            with open(path, 'w') as f:
+                json.dump(self.data[kind_data], f)
+        elif kind_file == 'csv':
+            df = pd.DataFrame(self.data[kind_data])
+            df.to_csv(path)
+        else:
+            raise Exception('Недоступный формат вывода файла. Выберите пожалуйста json или csv.')
 
     def load_file(self, kind_data, path=None):
         """ Импорт файла """
@@ -102,14 +109,13 @@ class Note:
         self.manager.delete_data('notes', 'id', id_note)
         print(f'Заметка {id_note} успешна удалена.\n')
 
-    def export_notes(self):
+    def export_notes(self, kind_file, path=None):
         """ Экспорт заметок """
-        self.manager.save_file('notes', self.manager.data['notes'])
+        self.manager.save_file('notes', kind_file, path)
         print('Заметки успешно сохранены!')
 
     def import_notes(self, path=None):
         """ Импорт заметок """
         self.manager.load_file('notes', path)
         print('Заметки успешно загружены!')
-
 
