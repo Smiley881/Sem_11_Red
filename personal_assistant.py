@@ -236,7 +236,67 @@ class Task:
         self.manager.save_file(kind_file, path)
         print(f'Задачи успешно сохранены по следующем пути: {path}\n')
 
+class Contact:
+    def __init__(self):
+        self.path = os.path.join('data', 'contacts.json')
+        self.manager = MainManager(self.path)
 
+    def create_contact(self, name, phone=None, email=None):
+        """ Создание записи """
+        # Установка id
+        if len(self.manager.data) == 0:
+            id_contact = 1
+        else:
+            id_contact = self.manager.data[-1]['id'] + 1
 
-# Надо переделать импорт и сохранение, чтоб по умолчанию сохранял в json
+        contact = {
+            'id': id_contact,
+            'name': name,
+            'phone': phone,
+            'email': email
+        }
+
+        # Сохранение
+        self.manager.data.append(contact)
+        with open(self.path, 'w') as f:
+            json.dump(self.manager.data, f)
+        print(f'Контакт {name} успешно создан!')
+
+    def print_contact(self, key_dict, key_result):
+        """ Вывод данных контакта """
+        contact = self.manager.find_data(key_dict, key_result)[0]
+        print({contact['name']})
+        print('Телефон —', contact['phone'])
+        print('Email —', contact['email'])
+
+    def update_contact(self, key_dict, key_result, type_change, new_data):
+        """ Обновление данных контакта """
+        contact = self.manager.find_data(key_dict, key_result)[0]
+        contact[type_change] = new_data
+
+        # Сохранение
+        with open(self.path, 'w') as f:
+            json.dump(self.manager.data, f)
+        print(f'Контакт {key_result} успешно изменен!')
+
+    def delete_contact(self, key_dict, key_result):
+        """ Удаление контакта """
+        self.manager.delete_data('contacts', key_dict, key_result)
+
+        print(f'Контакт {key_result} успешно удалён!')
+
+    def import_contacts(self, kind_file, path=None):
+        """ Импорт данных контактов """
+        if path is None:
+            path = self.path
+        self.manager.load_file(kind_file, path)
+        print(f'Контакты успешно сохранены по следующему пути: {path}')
+
+    def export_contacts(self, kind_file, path=None):
+        """ Экспорт данных контактов """
+        if path is None:
+            path = self.path
+        self.manager.load_file(kind_file, path)
+        print(f'Контакты успешно загружены из следующего файла: {path}')
+
 
