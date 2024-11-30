@@ -5,11 +5,11 @@ from datetime import datetime
 class MainManager:
     def __init__(self):
         notes = []
-        task_data = []
+        tasks = []
         phonebook_data = []
         finance_data = []
 
-        self.data = {'notes': notes}
+        self.data = {'notes': notes, 'tasks': tasks}
 
     def save_file(self, kind_data, kind_file, path=None):
         """ Экспорт файла """
@@ -55,7 +55,6 @@ class MainManager:
 class Note:
     def __init__(self):
         self.manager = MainManager()
-        self.log = []
 
     def create_note(self, title, content=None):
         """ Создание заметки """
@@ -76,15 +75,17 @@ class Note:
         }
         self.manager.data['notes'].append(note) # Сохранение в базе
 
-    def show_list_note(self):
-        """ Вывод списка """
+        print(f'Заметка {id_note} успешно создана!\n')
+
+    def show_list_notes(self):
+        """ Вывод списка заметок """
         if len(self.manager.data['notes']) == 0:
             print('Список заметок пуст. Создайте новую заметку прямо сейчас!')
         else:
             print('Список заметок:')
             for note in self.manager.data['notes']:
                 print(f'Заметка {note["id"]} — {note["title"]} — {note["timestamp"]}')
-            print(' ') # просто отступ
+            print('\n') # просто отступ
 
     def print_note(self, id_note):
         """ Вывод определенной заметки """
@@ -104,6 +105,8 @@ class Note:
         note[type_change] = new_data
         note['timestamp'] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
+        print(f'Заметка {id_note} успешно обновлена!\n')
+
     def delete_note(self, id_note):
         """ Удаление заметки """
         self.manager.delete_data('notes', 'id', id_note)
@@ -112,10 +115,95 @@ class Note:
     def export_notes(self, kind_file, path=None):
         """ Экспорт заметок """
         self.manager.save_file('notes', kind_file, path)
-        print('Заметки успешно сохранены!')
+        print('Заметки успешно сохранены!\n')
 
     def import_notes(self, path=None):
         """ Импорт заметок """
         self.manager.load_file('notes', path)
-        print('Заметки успешно загружены!')
+        print('Заметки успешно загружены!\n')
+
+class Task:
+    def __init__(self):
+        self.manager = MainManager()
+
+    def create_task(self, title: str, priority: str, due_date: str, description=None, done=False):
+        """ Создание задачи """
+        # Проверка наличия ошибок в поле приоритет
+        priority_list = ['высокий', 'средний', 'низкий']
+        if priority.lower() not in priority_list:
+            raise ValueError('Укажите один из следующих вариантов приоритета: высокий, средний, низкий')
+        else:
+            priority = priority.capitalize()
+
+        # Проверка наличия ошибки в поле срока
+        try:
+            date_check = datetime.strptime(due_date, '%d-%m-%Y')
+        except ValueError:
+            raise ValueError('Формат даты указан неверно. Правильный: ДД-ММ-ГГГГ')
+
+        # Установка id
+        if len(self.manager.data['tasks']) == 0:
+            id_task = 1
+        else:
+            id_task = self.manager.data['tasks'][-1]['id'] + 1
+
+        # Создание таска
+        task = {
+            'id': id_task,
+            'title': title,
+            'description': description,
+            'done': done,
+            'priority': priority,
+            'due_date': due_date
+        }
+        self.manager.data['tasks'].append(task)
+        print(f'Задача {id_task} успешно добавлена!\n')
+
+    def show_list_tasks(self):
+        """ Вывод списка задач """
+        if self.manager.data['tasks']:
+            print('Список поставленных задач:')
+            for i, task in enumerate(self.manager.data['tasks']):
+                print('Задача', task['id'])
+                print(f'\"{task['title']}\"')
+                print('Срок:' , task['due_date'])
+                if i < len(self.manager.data['tasks']) - 1:
+                    print('===============================')
+            print('\n')
+        else:
+            print('Список задач пуст.\n')
+
+    def mark_done(self, id_task):
+        """ Отметка выполнения задачи """
+        task = self.manager.find_data('tasks', 'id', id_task)[0]
+        task['done'] = True
+
+        print(f'Задача {id_task} успешно отмечена как выполненная!\n')
+
+    def update_task(self, id_task, kind_change, new_data):
+        """ Обновление данных задачи """
+        task = self.manager.find_data('tasks', 'id', id_task)[0]
+        task[kind_change] = new_data
+
+        print(f'Задача {id_task} успешно обновлена!\n')
+
+    def delete_task(self, id_task):
+        """ Удаление задачи """
+        self.manager.delete_data('tasks', 'id', id_task)
+
+        print(f'Задача {id_task} успешно удалена!\n')
+
+    def import_tasks(self, path=None):
+        """ Импорт задач """
+        self.manager.load_file('tasks', path)
+
+        print('Задачи успешно загружены!\n')
+
+    def export_tasks(self, kind_file, path=None):
+        """ Экспорт задач """
+        self.manager.save_file('tasks', kind_file, path)
+
+        print('Задачи успешно сохранены!\n')
+
+
 
