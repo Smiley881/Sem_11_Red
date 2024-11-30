@@ -3,29 +3,31 @@ import pandas as pd
 from datetime import datetime
 
 class MainManager:
-    def __init__(self):
-        self.data = []
+    def __init__(self, path):
+        if os.path.exists(path):
+            with open(path) as f:
+                self.data = json.load(f)
+        else:
+            self.data = []
 
-    def save_file(self, kind_data, kind_file, path=None):
+    def save_file(self, kind_file, path):
         """ Экспорт файла """
-        if path is None:
-            path = os.path.join('data', f'{kind_data}.{kind_file}')
 
         if kind_file == 'json':
             with open(path, 'w') as f:
                 json.dump(self.data, f)
-        elif kind_file == 'csv':
+        else:
             df = pd.DataFrame(self.data)
             df.to_csv(path)
-        else:
-            raise Exception('Недоступный формат вывода файла. Выберите пожалуйста json или csv.')
 
-    def load_file(self, kind_data, path=None):
+    def load_file(self, kind_file, path):
         """ Импорт файла """
-        if path is None:
-            path = os.path.join('data', f'{kind_data}.json')
-        with open(path) as f:
-            self.data = json.load(f)
+        if kind_file == 'json':
+            with open(path) as f:
+                self.data = json.load(f)
+        else:
+            df = pd.read_csv(path)
+            self.data = df.to_csv()
 
     def find_data(self, key_dict, key_result):
         """ Поиск данных в хранилище по ключу """
@@ -44,12 +46,16 @@ class MainManager:
         for i in index_list:
             self.data.pop(i)
 
-        self.save_file(kind_data, self.data)
+        # Сохранение
+        path = os.path.join('data', f'{kind_data}.json')
+        with open(path, 'w') as f:
+            json.dump(self.data, f)
 
 
 class Note:
     def __init__(self):
-        self.manager = MainManager()
+        self.path = os.path.join('data', 'notes.json')
+        self.manager = MainManager(self.path)
 
     def create_note(self, title, content=None):
         """ Создание заметки """
@@ -70,6 +76,10 @@ class Note:
         }
         self.manager.data.append(note) # Сохранение в базе
 
+        # Сохранение
+        with open(self.path, 'w') as f:
+            json.dump(self.manager.data, f)
+
         print(f'Заметка {id_note} успешно создана!\n')
 
     def show_list_notes(self):
@@ -80,7 +90,7 @@ class Note:
             print('Список заметок:')
             for note in self.manager.data:
                 print(f'Заметка {note["id"]} — {note["title"]} — {note["timestamp"]}')
-            print('\n') # просто отступ
+            print(' ') # просто отступ
 
     def print_note(self, id_note):
         """ Вывод определенной заметки """
@@ -100,6 +110,10 @@ class Note:
         note[type_change] = new_data
         note['timestamp'] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
+        # Сохранение
+        with open(self.path, 'w') as f:
+            json.dump(self.manager.data, f)
+
         print(f'Заметка {id_note} успешно обновлена!\n')
 
     def delete_note(self, id_note):
@@ -109,17 +123,22 @@ class Note:
 
     def export_notes(self, kind_file, path=None):
         """ Экспорт заметок """
-        self.manager.save_file('notes', kind_file, path)
-        print('Заметки успешно сохранены!\n')
+        if path is None:
+            path = self.path
+        self.manager.save_file(kind_file, path)
+        print(f'Заметки успешно сохранены по пути: {path} !\n')
 
-    def import_notes(self, path=None):
+    def import_notes(self, kind_file, path=None):
         """ Импорт заметок """
-        self.manager.load_file('notes', path)
-        print('Заметки успешно загружены!\n')
+        if path is None:
+            path = self.path
+        self.manager.load_file(kind_file, path)
+        print(f'Заметки успешно загружены из следующего файла: {path}\n')
 
 class Task:
     def __init__(self):
-        self.manager = MainManager()
+        self.path = os.path.join('data', 'tasks.json')
+        self.manager = MainManager(self.path)
 
     def create_task(self, title: str, priority: str, due_date: str, description=None, done=False):
         """ Создание задачи """
@@ -152,6 +171,11 @@ class Task:
             'due_date': due_date
         }
         self.manager.data.append(task)
+
+        # Сохранение
+        with open(self.path, 'w') as f:
+            json.dump(self.manager.data, f)
+
         print(f'Задача {id_task} успешно добавлена!\n')
 
     def show_list_tasks(self):
@@ -173,12 +197,20 @@ class Task:
         task = self.manager.find_data('id', id_task)[0]
         task['done'] = True
 
+        # Сохранение
+        with open(self.path, 'w') as f:
+            json.dump(self.manager.data, f)
+
         print(f'Задача {id_task} успешно отмечена как выполненная!\n')
 
     def update_task(self, id_task, kind_change, new_data):
         """ Обновление данных задачи """
         task = self.manager.find_data('id', id_task)[0]
         task[kind_change] = new_data
+
+        # Сохранение
+        with open(self.path, 'w') as f:
+            json.dump(self.manager.data, f)
 
         print(f'Задача {id_task} успешно обновлена!\n')
 
@@ -188,17 +220,23 @@ class Task:
 
         print(f'Задача {id_task} успешно удалена!\n')
 
-    def import_tasks(self, path=None):
+    def import_tasks(self, kind_file, path=None):
         """ Импорт задач """
-        self.manager.load_file('tasks', path)
+        if path is None:
+            path = self.path
 
-        print('Задачи успешно загружены!\n')
+        self.manager.load_file(kind_file, path)
+        print(f'Задачи успешно загружены из следующего файла: {path}\n')
 
     def export_tasks(self, kind_file, path=None):
         """ Экспорт задач """
-        self.manager.save_file('tasks', kind_file, path)
+        if path is None:
+            path = self.path
 
-        print('Задачи успешно сохранены!\n')
+        self.manager.save_file(kind_file, path)
+        print(f'Задачи успешно сохранены по следующем пути: {path}\n')
 
 
+
+# Надо переделать импорт и сохранение, чтоб по умолчанию сохранял в json
 
