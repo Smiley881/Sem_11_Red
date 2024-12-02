@@ -406,6 +406,32 @@ class FinanceRecord:
         self.manager.save_file('csv', path)
         print(f'Финансовые записи успешно сохранены по следующему пути: {path}\n')
 
+class Calculator:
+    def __init__(self):
+        self.data = 0
+
+    def operations(self, first_num, op, second_num):
+        """ Операции """
+        # Проверка операции
+        try:
+            if op == '+':
+                self.data = float(first_num) + float(second_num)
+                print(self.data)
+            elif op == '-':
+                self.data = float(first_num) - float(second_num)
+                print(self.data)
+            elif op == '/':
+                self.data = float(first_num) / float(second_num)
+                print(self.data)
+            elif op == '*':
+                self.data = float(first_num) * float(second_num)
+            else:
+                raise ValueError('Пожалуйста введите одно из действий: +, -, /, *')
+        except ValueError:
+            raise ValueError('Пожалуйста введите числа в корректном формате. Если хотите ввести дробное число, то пишите в виде 0.00')
+
+    def clear_calc(self):
+        self.data = 0
 
 
 
