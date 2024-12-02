@@ -1,6 +1,6 @@
 import csv, os, json
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class MainManager:
     def __init__(self, path):
@@ -260,7 +260,7 @@ class Contact:
         self.manager.data.append(contact)
         with open(self.path, 'w') as f:
             json.dump(self.manager.data, f)
-        print(f'Контакт {name} успешно создан!')
+        print(f'Контакт {name} успешно создан!\n')
 
     def print_contact(self, key_dict, key_result):
         """ Вывод данных контакта """
@@ -277,26 +277,135 @@ class Contact:
         # Сохранение
         with open(self.path, 'w') as f:
             json.dump(self.manager.data, f)
-        print(f'Контакт {key_result} успешно изменен!')
+        print(f'Контакт {key_result} успешно изменен!\n')
 
     def delete_contact(self, key_dict, key_result):
         """ Удаление контакта """
         self.manager.delete_data('contacts', key_dict, key_result)
 
-        print(f'Контакт {key_result} успешно удалён!')
+        print(f'Контакт {key_result} успешно удалён!\n')
 
     def import_contacts(self, kind_file, path=None):
         """ Импорт данных контактов """
         if path is None:
             path = self.path
         self.manager.load_file(kind_file, path)
-        print(f'Контакты успешно сохранены по следующему пути: {path}')
+        print(f'Контакты успешно загружены из следующего файла: {path}\n')
 
     def export_contacts(self, kind_file, path=None):
         """ Экспорт данных контактов """
         if path is None:
             path = self.path
         self.manager.load_file(kind_file, path)
-        print(f'Контакты успешно загружены из следующего файла: {path}')
+        print(f'Контакты успешно сохранены по следующему пути: {path}\n')
+
+class FinanceRecord:
+    def __init__(self):
+        self.path = os.path.join('data', 'finance.json')
+        self.manager = MainManager(self.path)
+
+    def create_record(self, amount: float, category: str, date: str, description=None):
+        """ Создание записи о доходе/расходе """
+        # Проверка наличия ошибки в поле даты
+        try:
+            date_check = datetime.strptime(date, '%d-%m-%Y')
+        except ValueError:
+            raise ValueError('Формат даты указан неверно. Правильный: ДД-ММ-ГГГГ')
+
+        # Установка id
+        if len(self.manager.data) == 0:
+            id_record = 1
+        else:
+            id_record = self.manager.data[-1]['id'] + 1
+
+        record = {
+            'id': id_record,
+            'amount': amount,
+            'category': category,
+            'date': date,
+            'description': description
+        }
+
+        self.manager.data.append(record)
+        with open(self.path, 'w') as f:
+            json.dump(self.manager.data, f)
+
+        print(f'Запись {id_record} за {date} успешно создана!\n')
+
+    def show_list_records(self, key_dict, key_result):
+        """ Вывод списка записей """
+        records_list = self.manager.find_data(key_dict, key_result)
+        if records_list:
+            revenue_list = [i for i in records_list if i['amount'] > 0]
+            cost_list = [i for i in records_list if i['amount'] < 0]
+            print('Результаты поиска:')
+            print(key_result)
+            print('Доходы:')
+            if revenue_list:
+                for revenue in revenue_list:
+                    print(f'{revenue['date']} — {revenue['category']} — {revenue['amount']}')
+            else:
+                print('Данные отсутствуют')
+            if cost_list:
+                for cost in cost_list:
+                    print(f'{cost['date']} — {cost['category']} — {cost['amount']}')
+            else:
+                print('Данные отсутствуют')
+            print(' ') # просто отступ
+        else:
+            print('Данные отсутствуют\n')
+
+    def create_report(self, start_date, end_date):
+        """ Генерация отчёта """
+        # Проверка формата даты
+        try:
+            start_date = datetime.strptime(start_date, '%d-%m-%Y').date()
+            end_date = datetime.strptime(end_date, '%d-%m-%Y').date()
+        except ValueError:
+            raise ValueError('Формат даты указан неверно. Правильный формат: ДД-ММ-ГГГГ')
+
+        dates_list = [start_date + timedelta(days=n) for n in range((end_date - start_date).days + 1)]
+
+        result = []
+        for date in dates_list:
+            records_list = self.manager.find_data('date', date)
+            result.extend(records_list)
+
+        # Сохранение данных
+        path = os.path.join('data', f'report_{start_date}_{end_date}.csv')
+        self.manager.save_file('csv', path)
+
+        # Ревизия
+        sum_rev = sum([i for i in result if i['amount'] > 0])
+        sum_cost = sum([i for i in result if i['amount'] < 0])
+        balance = sum_rev + sum_cost
+
+        print(f'Финансовый отчет за период с {start_date} по {end_date}:')
+        print('Общий доход:', sum_rev)
+        print('Общие расходы:', sum_cost)
+        print('Баланс:', balance)
+        print('Подробная информация сохранена в файле', path)
+
+    def delete_record(self, key_dict, key_result):
+        self.manager.delete_data('finance', key_dict, key_result)
+
+        with open(self.path, 'w') as f:
+            json.dump(self.manager.data, f)
+
+        print('Данные успешно удалены!')
+
+    def import_records(self, path=None):
+        if path is None:
+            path = self.path
+        self.manager.load_file('csv', path)
+        print(f'Финансовые записи успешно загружены из следующего файла: {path}\n')
+
+    def export_records(self, path=None):
+        if path is None:
+            path = self.path
+        self.manager.save_file('csv', path)
+        print(f'Финансовые записи успешно сохранены по следующему пути: {path}\n')
+
+
 
 
