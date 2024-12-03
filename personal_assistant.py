@@ -1,4 +1,5 @@
-import csv, os, json
+import os, json
+
 import pandas as pd
 from datetime import datetime, timedelta
 
@@ -20,28 +21,27 @@ class MainManager:
             df = pd.DataFrame(self.data)
             df.to_csv(path)
 
-    def load_file(self, kind_file, path):
+    def load_file(self, kind_file, path_import, path_home):
         """ Импорт файла """
         if kind_file == 'json':
-            with open(path) as f:
+            with open(path_import) as f:
                 self.data = json.load(f)
         else:
-            df = pd.read_csv(path)
+            df = pd.read_csv(path_import)
             self.data = df.to_csv()
+
+        self.save_file('json', path_home)
 
     def find_data(self, key_dict, key_result):
         """ Поиск данных в хранилище по ключу """
-        try:
-            data_res = [i for i in self.data if i[key_dict] == key_result]
-            data_res = data_res
-            return data_res
-        except IndexError:
-            raise ValueError(f'Ничего не удалось найти по указанному параметру {key_dict}.')
+        data_res = [i for i in self.data if i[key_dict] == key_result]
+        return data_res
 
     def delete_data(self, kind_data, key_dict, key_result):
         """ Удаление данных по ключу """
         data_res = self.find_data(key_dict, key_result)
         index_list = [self.data.index(data) for data in data_res]
+        test = data_res[0] # для проверки на нахождение
 
         for i in index_list:
             self.data.pop(i)
@@ -57,9 +57,14 @@ class Note:
         self.path = os.path.join('data', 'notes.json')
         self.manager = MainManager(self.path)
 
-    def create_note(self, title, content=None):
+    def create_note(self, title, content):
         """ Создание заметки """
+        if title in [i['title'] for i in self.manager.data]:
+            print('Заметка с таким названием уже существует. Пожалуйста, придумайте новое название.\n')
+            return
         timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S") # дата создания заметки
+        if content == '':
+            content = None
 
         # Установка id
         if len(self.manager.data) == 0:
@@ -85,55 +90,69 @@ class Note:
     def show_list_notes(self):
         """ Вывод списка заметок """
         if len(self.manager.data) == 0:
-            print('Список заметок пуст. Создайте новую заметку прямо сейчас!')
+            print('Список заметок пуст. Создайте новую заметку прямо сейчас!\n')
         else:
             print('Список заметок:')
             for note in self.manager.data:
                 print(f'Заметка {note["id"]} — {note["title"]} — {note["timestamp"]}')
             print(' ') # просто отступ
 
-    def print_note(self, id_note):
+    def print_note(self, title):
         """ Вывод определенной заметки """
-        note_res = self.manager.find_data('id', id_note)[0]
+        try:
+            note_res = self.manager.find_data('title', title)[0]
+        except IndexError:
+            print('Заметка не была найдена. Проверьте корректность введённого названия.\n')
+            return
+        else:
+            print(f'Заметка {note_res['id']}')
+            print(f"\"{note_res['title']}\"")
+            print(note_res['content'])
+            print('Дата обновления:', note_res['timestamp'])
+            print(' ') # просто отступ
 
-        print(f'Заметка {id_note}')
-        print(f"\"{note_res['title']}\"")
-        print(note_res['content'])
-        print('Дата обновления:', note_res['timestamp'])
-
-    def update_note(self, id_note, type_change, new_data):
+    def update_note(self, title, type_change, new_data):
         """ Обновление заметки """
         # Нахождение заметки
-        note = self.manager.find_data('id', id_note)[0]
+        try:
+            note = self.manager.find_data('title', title)[0]
+        except IndexError:
+            print('Заметка не была найдена. Проверьте корректность введённого названия.\n')
+            return
+        else:
+            # Обновление данных
+            note[type_change] = new_data
+            note['timestamp'] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
-        # Обновление данных
-        note[type_change] = new_data
-        note['timestamp'] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+            # Сохранение
+            with open(self.path, 'w') as f:
+                json.dump(self.manager.data, f)
 
-        # Сохранение
-        with open(self.path, 'w') as f:
-            json.dump(self.manager.data, f)
+            print(f'Заметка {title} успешно обновлена!\n')
 
-        print(f'Заметка {id_note} успешно обновлена!\n')
-
-    def delete_note(self, id_note):
+    def delete_note(self, title):
         """ Удаление заметки """
-        self.manager.delete_data('notes', 'id', id_note)
-        print(f'Заметка {id_note} успешна удалена.\n')
+        try:
+            self.manager.delete_data('notes', 'title', title)
+        except IndexError:
+            print('Заметка не была найдена. Проверьте корректность введённого названия.\n')
+            return
+        else:
+            print(f'Заметка {title} успешна удалена.\n')
 
     def export_notes(self, kind_file, path=None):
         """ Экспорт заметок """
         if path is None:
             path = self.path
         self.manager.save_file(kind_file, path)
-        print(f'Заметки успешно сохранены по пути: {path} !\n')
+        print(f'Заметки успешно сохранены по пути: {path} \n')
 
-    def import_notes(self, kind_file, path=None):
+    def import_notes(self, kind_file, path_import, path_home=None):
         """ Импорт заметок """
-        if path is None:
-            path = self.path
-        self.manager.load_file(kind_file, path)
-        print(f'Заметки успешно загружены из следующего файла: {path}\n')
+        if path_home is None:
+            path_home = self.path
+        self.manager.load_file(kind_file, path_import, path_home)
+        print(f'Заметки успешно загружены из следующего файла: {path_import}\n')
 
 class Task:
     def __init__(self):
@@ -142,18 +161,20 @@ class Task:
 
     def create_task(self, title: str, priority: str, due_date: str, description=None, done=False):
         """ Создание задачи """
+        # Проверка уникальности названия
+        if title in [i['title'] for i in self.manager.data]:
+            print('Заметка с таким названием уже существует. Пожалуйста, придумайте новое название.\n')
+            return
+        if description == '':
+            description = None
+
         # Проверка наличия ошибок в поле приоритет
         priority_list = ['высокий', 'средний', 'низкий']
         if priority.lower() not in priority_list:
-            raise ValueError('Укажите один из следующих вариантов приоритета: высокий, средний, низкий')
+            print('Укажите один из следующих вариантов приоритета: высокий, средний, низкий')
+            return
         else:
             priority = priority.capitalize()
-
-        # Проверка наличия ошибки в поле срока
-        try:
-            date_check = datetime.strptime(due_date, '%d-%m-%Y')
-        except ValueError:
-            raise ValueError('Формат даты указан неверно. Правильный: ДД-ММ-ГГГГ')
 
         # Установка id
         if len(self.manager.data) == 0:
@@ -161,14 +182,21 @@ class Task:
         else:
             id_task = self.manager.data[-1]['id'] + 1
 
+        # Проверка наличия ошибки в поле даты
+        try:
+            date_check = datetime.strptime(due_date, '%d-%m-%Y')
+        except ValueError:
+            print('Формат даты указан неверно. Правильный: ДД-ММ-ГГГГ')
+            return
+
         # Создание таска
         task = {
             'id': id_task,
-            'title': title,
-            'description': description,
+            'title': str(title),
+            'description': str(description),
             'done': done,
-            'priority': priority,
-            'due_date': due_date
+            'priority': str(priority),
+            'due_date': str(due_date)
         }
         self.manager.data.append(task)
 
@@ -177,6 +205,21 @@ class Task:
             json.dump(self.manager.data, f)
 
         print(f'Задача {id_task} успешно добавлена!\n')
+
+    def print_task(self, title):
+        """ Вывод определенной заметки """
+        try:
+            task_res = self.manager.find_data('title', title)[0]
+        except IndexError:
+            print('Задача не была найдена. Проверьте корректность введённого названия.\n')
+            return
+        else:
+            print(f'Задача {task_res['id']}')
+            print(f"\"{task_res['title']}\"")
+            print(task_res['description'])
+            print('Приоритет:', task_res['priority'])
+            print('Крайний срок:', task_res['due_date'])
+            print(' ') # просто отступ
 
     def show_list_tasks(self):
         """ Вывод списка задач """
@@ -192,41 +235,56 @@ class Task:
         else:
             print('Список задач пуст.\n')
 
-    def mark_done(self, id_task):
+    def mark_done(self, title):
         """ Отметка выполнения задачи """
-        task = self.manager.find_data('id', id_task)[0]
+        task = self.manager.find_data('title', title)[0]
         task['done'] = True
 
         # Сохранение
         with open(self.path, 'w') as f:
             json.dump(self.manager.data, f)
 
-        print(f'Задача {id_task} успешно отмечена как выполненная!\n')
+        print(f'Задача \"{title}\" успешно отмечена как выполненная!\n')
 
-    def update_task(self, id_task, kind_change, new_data):
+    def update_task(self, title, kind_change, new_data):
         """ Обновление данных задачи """
-        task = self.manager.find_data('id', id_task)[0]
+        task = self.manager.find_data('title', title)[0]
+        if kind_change == 'priority' and new_data.lower() not in ['высокий', 'средний', 'низкий']:
+            print('Укажите один из следующих вариантов приоритета: высокий, средний, низкий')
+            return
+        elif kind_change == 'due_date':
+            # Проверка наличия ошибки в поле даты
+            try:
+                date_check = datetime.strptime(new_data, '%d-%m-%Y')
+            except ValueError:
+                print('Формат даты указан неверно. Правильный: ДД-ММ-ГГГГ')
+                return
+
         task[kind_change] = new_data
 
         # Сохранение
         with open(self.path, 'w') as f:
             json.dump(self.manager.data, f)
 
-        print(f'Задача {id_task} успешно обновлена!\n')
+        print(f'Задача \"{title}\" успешно обновлена!\n')
 
-    def delete_task(self, id_task):
+    def delete_task(self, title):
         """ Удаление задачи """
-        self.manager.delete_data('tasks', 'id', id_task)
+        try:
+            self.manager.delete_data('tasks', 'title', title)
+        except IndexError:
+            print('Задача не была найдена. Проверьте корректность введённого названия.\n')
+            return
+        else:
+            print(f'Задача {title} успешна удалена.\n')
 
-        print(f'Задача {id_task} успешно удалена!\n')
-
-    def import_tasks(self, kind_file, path=None):
+    def import_tasks(self, kind_file, path_import, path_home=None):
         """ Импорт задач """
-        if path is None:
-            path = self.path
+        if path_home is None:
+            path_home = self.path
 
-        self.manager.load_file(kind_file, path)
-        print(f'Задачи успешно загружены из следующего файла: {path}\n')
+        self.manager.load_file(kind_file, path_import, path_home)
+        print(f'Задачи успешно загружены из следующего файла: {path_import}\n')
 
     def export_tasks(self, kind_file, path=None):
         """ Экспорт задач """
@@ -285,18 +343,18 @@ class Contact:
 
         print(f'Контакт {key_result} успешно удалён!\n')
 
-    def import_contacts(self, kind_file, path=None):
+    def import_contacts(self, kind_file, path_import, path_home=None):
         """ Импорт данных контактов """
-        if path is None:
-            path = self.path
-        self.manager.load_file(kind_file, path)
-        print(f'Контакты успешно загружены из следующего файла: {path}\n')
+        if path_home is None:
+            path_home = self.path
+        self.manager.load_file(kind_file, path_import, path_home)
+        print(f'Контакты успешно загружены из следующего файла: {path_import}\n')
 
     def export_contacts(self, kind_file, path=None):
         """ Экспорт данных контактов """
         if path is None:
             path = self.path
-        self.manager.load_file(kind_file, path)
+        self.manager.save_file(kind_file, path)
         print(f'Контакты успешно сохранены по следующему пути: {path}\n')
 
 class FinanceRecord:
@@ -394,11 +452,11 @@ class FinanceRecord:
 
         print('Данные успешно удалены!')
 
-    def import_records(self, path=None):
-        if path is None:
-            path = self.path
-        self.manager.load_file('csv', path)
-        print(f'Финансовые записи успешно загружены из следующего файла: {path}\n')
+    def import_records(self, path_import, path_home=None):
+        if path_home is None:
+            path_home = self.path
+        self.manager.load_file('csv', path_import, path_home)
+        print(f'Финансовые записи успешно загружены из следующего файла: {path_import}\n')
 
     def export_records(self, path=None):
         if path is None:
@@ -432,6 +490,301 @@ class Calculator:
 
     def clear_calc(self):
         self.data = 0
+
+class Menu:
+    def check_choice(self, console, end_choice):
+        if console in [i for i in range(1, end_choice + 1)]:
+            return console
+        else:
+            return 0
+
+    def hello(self):
+        print('Добро пожаловать в Персональный помощник!')
+        print('Список возможных программ:')
+        print('1. Управление заметками')
+        print('2. Управление задачами')
+        print('3. Управление контактами')
+        print('4. Управление финансовыми записями')
+        print('5. Калькулятор')
+        print('6. Выход')
+
+        console = int(input('Выберите действие: '))
+        print(' ') # просто отступ
+        return console
+
+    def notes(self):
+        note = Note()
+        print('Список функций:')
+        print('1. Создание новой заметки')
+        print('2. Вывод списка заметок')
+        print('3. Найти заметку по названию')
+        print('4. Редактирование заметки')
+        print('5. Удаление заметки')
+        print('6. Импорт заметок')
+        print('7. Экспорт заметок')
+        print('8. Вернуться в главное меню')
+
+        console = int(input('Выберите действие: '))
+        while self.check_choice(console, 8) == 0:
+            console = int(input('Пожалуйста введите число от 1 до 8: '))
+        print(' ') # просто отступ
+
+        if console == 1:
+            print('СОЗДАНИЕ ЗАМЕТКИ')
+            print('Название заметки:')
+            title = input()
+            print('Описание заметки:')
+            print('P.s. Если вы не хотите добавлять описание, просто нажмите ENTER на клавиатуре.')
+            content = input()
+
+            note.create_note(title, content)
+            return True
+
+        elif console == 2:
+            print('ВЫВОД СПИСКА ЗАМЕТОК')
+            note.show_list_notes()
+            return True
+
+        elif console == 3:
+            print('ПОИСК ЗАМЕТКИ')
+            print('Название искомой заметки:')
+            title = input()
+            note.print_note(title)
+            return True
+
+        elif console == 4:
+            print('РЕДАКТИРОВАНИЕ ЗАМЕТКИ')
+            print('Название искомой заметки:')
+            title = input()
+
+            print('Что изменить в заметке?')
+            print('1. Название')
+            print('2. Описание')
+            console_1 = int(input())
+            while self.check_choice(console_1, 2) == 0:
+                console_1 = int(input('Пожалуйста введите число от 1 до 2: '))
+            if console_1 == 1:
+                type_change = 'title'
+            else:
+                type_change = 'content'
+
+            print('Введите новое название/описание:')
+            new_data = input()
+
+            note.update_note(title, type_change, new_data)
+            return True
+
+        elif console == 5:
+            print('УДАЛЕНИЕ ЗАМЕТКИ')
+            print('Название искомой заметки:')
+            title = input()
+
+            note.delete_note(title)
+            return True
+
+        elif console == 6:
+            print('ИМПОРТ ЗАМЕТОК')
+            print('Выберите формат файла:')
+            print('1. JSON')
+            print('2. CSV')
+            console_1 = int(input())
+            while self.check_choice(console_1, 2) == 0:
+                console_1 = int(input('Пожалуйста введите число от 1 до 2: '))
+            if console_1 == 1:
+                kind_file = 'json'
+            else:
+                kind_file = 'csv'
+
+            print('Введите путь к файлу:')
+            path_import = input()
+            note.import_notes(kind_file, path_import, note.path)
+            return True
+
+        elif console == 7:
+            print('ЭКСПОРТ ЗАМЕТОК')
+            print('Выберите формат файла:')
+            print('1. JSON')
+            print('2. CSV')
+            console_1 = int(input())
+            while self.check_choice(console_1, 2) == 0:
+                console_1 = int(input('Пожалуйста введите число от 1 до 2: '))
+            if console_1 == 1:
+                kind_file = 'json'
+            else:
+                kind_file = 'csv'
+            print('Введите путь к файлу:')
+            path = input()
+            note.export_notes(kind_file, path)
+            return True
+
+        else:
+            return False
+
+    def tasks(self):
+        task = Task()
+        print('Список функций:')
+        print('1. Добавление новой задачи')
+        print('2. Вывод списка задач')
+        print('3. Найти задачу по названию')
+        print('4. Отметить задачу как выполненную')
+        print('5. Редактирование задачи')
+        print('6. Удаление задачи')
+        print('7. Импорт задач')
+        print('8. Экспорт задач')
+        print('9. Вернуться в главное меню')
+
+        console = int(input('Выберите действие: '))
+        while self.check_choice(console, 9) == 0:
+            console = int(input('Пожалуйста введите число от 1 до 9: '))
+        print(' ')  # просто отступ
+
+        if console == 1:
+            print('ДОБАВЛЕНИЕ ЗАДАЧИ')
+            print('Название задачи:')
+            title = input()
+            print('Описание заметки:')
+            print('P.s. Если вы не хотите добавлять описание, просто нажмите ENTER на клавиатуре.')
+            description = input()
+            print('Приоритет:')
+            priority = input()
+            print('Срок выполнения:')
+            due_date = input()
+
+            task.create_task(title, priority, due_date, description)
+            return True
+
+        elif console == 2:
+            print('ВЫВОД СПИСКА ЗАДАЧ')
+            task.show_list_tasks()
+            return True
+
+        elif console == 3:
+            print('ПОИСК ЗАДАЧИ')
+            print('Название искомой задачи:')
+            title = input()
+            task.print_task(title)
+            return True
+
+        elif console == 4:
+            print('ПОМЕТКА ВЫПОЛНЕНИЯ ЗАДАЧИ')
+            print('Название задачи:')
+            title = input()
+            task.mark_done(title)
+            print(f'Задача \"{title}\" помечена как выполнена!')
+
+        elif console == 5:
+            print('РЕДАКТИРОВАНИЕ ЗАДАЧИ')
+            print('Название искомой задачи:')
+            title = input()
+
+            print('Что изменить в задаче?')
+            print('1. Название')
+            print('2. Описание')
+            print('3. Приоритет')
+            print('4. Срок выполнения')
+            console_1 = int(input())
+            while self.check_choice(console_1, 4) == 0:
+                console_1 = int(input('Пожалуйста введите число от 1 до 4: '))
+            if console_1 == 1:
+                kind_change = 'title'
+            elif console_1 == 2:
+                kind_change = 'description'
+            elif console_1 == 3:
+                kind_change = 'priority'
+            else:
+                kind_change = 'due_date'
+
+            print('Введите новые данные')
+            new_data = input()
+            task.update_task(title, kind_change, new_data)
+            return True
+
+        elif console == 6:
+            print('УДАЛЕНИЕ ЗАДАЧИ')
+            print('Название искомой задачи:')
+            title = input()
+
+            task.delete_task(title)
+            return True
+
+        elif console == 7:
+            print('ИМПОРТ ЗАДАЧ')
+            print('Выберите формат файла:')
+            print('1. JSON')
+            print('2. CSV')
+            console_1 = int(input())
+            while self.check_choice(console_1, 2) == 0:
+                console_1 = int(input('Пожалуйста введите число от 1 до 2: '))
+            if console_1 == 1:
+                kind_file = 'json'
+            else:
+                kind_file = 'csv'
+
+            print('Введите путь к файлу:')
+            path_import = input()
+            task.import_tasks(kind_file, path_import, task.path)
+            return True
+
+        elif console == 8:
+            print('ЭКСПОРТ ЗАДАЧ')
+            print('Выберите формат файла:')
+            print('1. JSON')
+            print('2. CSV')
+            console_1 = int(input())
+            while self.check_choice(console_1, 2) == 0:
+                console_1 = int(input('Пожалуйста введите число от 1 до 2: '))
+            if console_1 == 1:
+                kind_file = 'json'
+            else:
+                kind_file = 'csv'
+            print('Введите путь к файлу:')
+            path = input()
+            task.export_tasks(kind_file, path)
+            return True
+
+        else:
+            return False
+
+    def contacts(self):
+        print('Список функций:')
+        print('1. Добавление нового контакта')
+        print('2. Поиск контакта по имени или номеру телефона')
+        print('3. Редактирование контакта')
+        print('4. Удаление контакта')
+        print('5. Импорт контактов')
+        print('6. Экспорт контактов')
+        console = int(input('Выберите действие: '))
+        while self.check_choice(console, 9) == 0:
+            console = int(input('Пожалуйста введите число от 1 до 9: '))
+        print(' ')  # просто отступ
+
+
+def main():
+    menu = Menu()
+    run_menu = True
+    while run_menu:
+        console = menu.hello()
+        while menu.check_choice(console, 6) == 0:
+            console = int(input('Пожалуйста введите число от 1 до 6: '))
+        if console == 1:
+            run_note = True
+            while run_note:
+                run_note = menu.notes()
+        elif console == 2:
+            run_task = True
+            while run_task:
+                run_task = menu.tasks()
+        elif console == 3:
+            run_contact = True
+            while run_contact:
+                run_contact = menu.contacts()
+        else:
+            run_menu = False
+
+if __name__ == '__main__':
+    main()
+
+
 
 
 
