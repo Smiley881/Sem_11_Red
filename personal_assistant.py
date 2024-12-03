@@ -307,11 +307,16 @@ class Contact:
         else:
             id_contact = self.manager.data[-1]['id'] + 1
 
+        if phone == '':
+            phone = None
+        if email == '':
+            email = None
+
         contact = {
             'id': id_contact,
             'name': name,
-            'phone': phone,
-            'email': email
+            'phone': str(phone),
+            'email': str(email)
         }
 
         # Сохранение
@@ -322,26 +327,40 @@ class Contact:
 
     def print_contact(self, key_dict, key_result):
         """ Вывод данных контакта """
-        contact = self.manager.find_data(key_dict, key_result)[0]
-        print({contact['name']})
-        print('Телефон —', contact['phone'])
-        print('Email —', contact['email'])
+        try:
+            contact = self.manager.find_data(key_dict, key_result)[0]
+        except IndexError:
+            print('Контакт не был найден. Проверьте корректность введённого названия.\n')
+            return
+        else:
+            print('Телефон —', contact['phone'])
+            print('Email —', contact['email'])
+            print(' ')
 
     def update_contact(self, key_dict, key_result, type_change, new_data):
         """ Обновление данных контакта """
-        contact = self.manager.find_data(key_dict, key_result)[0]
-        contact[type_change] = new_data
+        try:
+            contact = self.manager.find_data(key_dict, key_result)[0]
+        except IndexError:
+            print('Контакт не был найден. Проверьте корректность введённого названия.\n')
+            return
+        else:
+            contact[type_change] = new_data
 
-        # Сохранение
-        with open(self.path, 'w') as f:
-            json.dump(self.manager.data, f)
-        print(f'Контакт {key_result} успешно изменен!\n')
+            # Сохранение
+            with open(self.path, 'w') as f:
+                json.dump(self.manager.data, f)
+            print(f'Контакт {key_result} успешно изменен!\n')
 
     def delete_contact(self, key_dict, key_result):
         """ Удаление контакта """
-        self.manager.delete_data('contacts', key_dict, key_result)
-
-        print(f'Контакт {key_result} успешно удалён!\n')
+        try:
+            self.manager.delete_data('contacts', key_dict, key_result)
+        except IndexError:
+            print('Задача не была найдена. Проверьте корректность введённого названия.\n')
+            return
+        else:
+            print(f'Контакт {key_result} успешно удалён.\n')
 
     def import_contacts(self, kind_file, path_import, path_home=None):
         """ Импорт данных контактов """
@@ -557,7 +576,7 @@ class Menu:
             print('Название искомой заметки:')
             title = input()
 
-            print('Что изменить в заметке?')
+            print('Выберите вариант данных для редактирования:')
             print('1. Название')
             print('2. Описание')
             console_1 = int(input())
@@ -646,8 +665,10 @@ class Menu:
             print('P.s. Если вы не хотите добавлять описание, просто нажмите ENTER на клавиатуре.')
             description = input()
             print('Приоритет:')
+            print('P.s. Возможные варианты: высокий, средний, низкий')
             priority = input()
             print('Срок выполнения:')
+            print('P.s. Допустимый формат: ДД-ММ-ГГГГ')
             due_date = input()
 
             task.create_task(title, priority, due_date, description)
@@ -694,7 +715,7 @@ class Menu:
             else:
                 kind_change = 'due_date'
 
-            print('Введите новые данные')
+            print('Введите новые данные:')
             new_data = input()
             task.update_task(title, kind_change, new_data)
             return True
@@ -746,6 +767,7 @@ class Menu:
             return False
 
     def contacts(self):
+        contact = Contact()
         print('Список функций:')
         print('1. Добавление нового контакта')
         print('2. Поиск контакта по имени или номеру телефона')
@@ -753,10 +775,135 @@ class Menu:
         print('4. Удаление контакта')
         print('5. Импорт контактов')
         print('6. Экспорт контактов')
+        print('7. Выход в главное меню')
         console = int(input('Выберите действие: '))
-        while self.check_choice(console, 9) == 0:
-            console = int(input('Пожалуйста введите число от 1 до 9: '))
+        while self.check_choice(console, 7) == 0:
+            console = int(input('Пожалуйста введите число от 1 до 7: '))
         print(' ')  # просто отступ
+
+        if console == 1:
+            print('ДОБАВЛЕНИЕ КОНТАКТА')
+            print('Имя контакта:')
+            name = input()
+            print('Номер телефона контакта:')
+            print('P.s. Если вы не хотите добавлять номер телефона, просто нажмите ENTER на клавиатуре.')
+            phone = input()
+            print('Email контакта:')
+            print('P.s. Если вы не хотите добавлять email, просто нажмите ENTER на клавиатуре.')
+            email = input()
+
+            contact.create_contact(name, phone, email)
+            return True
+
+        elif console == 2:
+            print('ПОИСК КОНТАКТА')
+            print('Выберите вариант поиска контакта:')
+            print('1. По имени')
+            print('2. По номеру телефона')
+            console_1 = int(input())
+            while self.check_choice(console_1, 2) == 0:
+                console_1 = int(input('Пожалуйста введите число от 1 до 2: '))
+            if console_1 == 1:
+                key_dict = 'name'
+                print('Введите имя:')
+            else:
+                key_dict = 'phone'
+                print('Введите номер телефона:')
+            key_result = input()
+
+            contact.print_contact(key_dict, key_result)
+            return True
+
+        elif console == 3:
+            print('РЕДАКТИРОВАНИЕ КОНТАКТА')
+            print('Выберите вариант поиска контакта:')
+            print('1. По имени')
+            print('2. По номеру телефона')
+            console_1 = int(input())
+            while self.check_choice(console_1, 2) == 0:
+                console_1 = int(input('Пожалуйста введите число от 1 до 2: '))
+            if console_1 == 1:
+                key_dict = 'name'
+                print('Введите имя:')
+            else:
+                key_dict = 'phone'
+                print('Введите номер телефона:')
+            key_result = input()
+
+            print('Выберите вариант данных для редактирования:')
+            print('1. Имя')
+            print('2. Номер телефона')
+            print('3. Email')
+            console_2 = int(input())
+            while self.check_choice(console_1, 3) == 0:
+                console_2 = int(input('Пожалуйста введите число от 1 до 3: '))
+            if console_2 == 1:
+                type_change = 'name'
+            elif console_2 == 2:
+                type_change = 'phone'
+            else:
+                type_change = 'email'
+            print('Введите новые данные:')
+            new_data = input()
+            contact.update_contact(key_dict, key_result, type_change, new_data)
+            return True
+
+        elif console == 4:
+            print('УДАЛЕНИЕ КОНТАКТА')
+            print('Выберите вариант поиска контакта:')
+            print('1. По имени')
+            print('2. По номеру телефона')
+            console_1 = int(input())
+            while self.check_choice(console_1, 2) == 0:
+                console_1 = int(input('Пожалуйста введите число от 1 до 2: '))
+            if console_1 == 1:
+                key_dict = 'name'
+                print('Введите имя:')
+            else:
+                key_dict = 'phone'
+                print('Введите номер телефона:')
+            key_result = input()
+
+            contact.delete_contact(key_dict, key_result)
+            return True
+
+        elif console == 5:
+            print('ИМПОРТ КОНТАКОВ')
+            print('Выберите формат файла:')
+            print('1. JSON')
+            print('2. CSV')
+            console_1 = int(input())
+            while self.check_choice(console_1, 2) == 0:
+                console_1 = int(input('Пожалуйста введите число от 1 до 2: '))
+            if console_1 == 1:
+                kind_file = 'json'
+            else:
+                kind_file = 'csv'
+
+            print('Введите путь к файлу:')
+            path_import = input()
+            contact.import_contacts(kind_file, path_import, contact.path)
+            return True
+
+        elif console == 6:
+            print('ЭКСПОРТ ЗАДАЧ')
+            print('Выберите формат файла:')
+            print('1. JSON')
+            print('2. CSV')
+            console_1 = int(input())
+            while self.check_choice(console_1, 2) == 0:
+                console_1 = int(input('Пожалуйста введите число от 1 до 2: '))
+            if console_1 == 1:
+                kind_file = 'json'
+            else:
+                kind_file = 'csv'
+            print('Введите путь к файлу:')
+            path = input()
+            contact.export_contacts(kind_file, path)
+            return True
+
+        else:
+            return False
 
 
 def main():
