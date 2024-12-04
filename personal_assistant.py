@@ -387,7 +387,8 @@ class FinanceRecord:
         try:
             date_check = datetime.strptime(date, '%d-%m-%Y')
         except ValueError:
-            raise ValueError('Формат даты указан неверно. Правильный: ДД-ММ-ГГГГ')
+            print('Формат даты указан неверно. Правильный: ДД-ММ-ГГГГ')
+            return
 
         # Установка id
         if len(self.manager.data) == 0:
@@ -395,12 +396,16 @@ class FinanceRecord:
         else:
             id_record = self.manager.data[-1]['id'] + 1
 
+        # Исправление description
+        if description == '':
+            description = None
+
         record = {
             'id': id_record,
             'amount': amount,
-            'category': category,
+            'category': str(category),
             'date': date,
-            'description': description
+            'description': str(description)
         }
 
         self.manager.data.append(record)
@@ -411,7 +416,10 @@ class FinanceRecord:
 
     def show_list_records(self, key_dict, key_result):
         """ Вывод списка записей """
-        records_list = self.manager.find_data(key_dict, key_result)
+        if key_dict is None:
+            records_list = self.manager.data
+        else:
+            records_list = self.manager.find_data(key_dict, key_result)
         if records_list:
             revenue_list = [i for i in records_list if i['amount'] > 0]
             cost_list = [i for i in records_list if i['amount'] < 0]
@@ -905,6 +913,63 @@ class Menu:
         else:
             return False
 
+    def finances(self):
+        finance = FinanceRecord()
+        print('Список функций:')
+        print('1. Добавление новой финансовой записи')
+        print('2. Просмотр всех записей с использованием фильтрации')
+        print('3. Генерация отчёта с определенный периода')
+        print('4. Импорт записей')
+        print('5. Экспорт записей')
+        print('6. Выйти в главное меню')
+        console = int(input('Выберите действие: '))
+        while self.check_choice(console, 6) == 0:
+            console = int(input('Пожалуйста введите число от 1 до 6: '))
+        print(' ')  # просто отступ
+
+        if console == 1:
+            print('ДОБАВЛЕНИЕ ФИНАНСОВОЙ ЗАПИСИ')
+            print('Введите размер операции:')
+            print('P.s. Больше 0 — доход, ниже 0 — расход.')
+            amount = int(input())
+            print('Введите категорию:')
+            print('P.s. Например, Еда, Такси или др.')
+            cat = input()
+            print('Введите описание операции:')
+            print('P.s. Если вы не хотите добавлять номер телефона, просто нажмите ENTER на клавиатуре.')
+            description = input()
+            print('Введите дату операции')
+            print('P.s. Допустимый формат: ДД-ММ-ГГГГ')
+            date = input()
+            finance.create_record(amount, cat, date, description)
+            return True
+
+        elif console == 2:
+            print('ВЫВОД ВСЕХ ЗАПИСЕЙ')
+            print('Отфильтровать данные по:')
+            print('1. По дате')
+            print('2. По категории')
+            print('3. Не использовать фильтр')
+            console_1 = int(input())
+            while self.check_choice(console, 3) == 0:
+                console_1 = int(input('Пожалуйста введите число от 1 до 3: '))
+            if console_1 == 1:
+                key_dict = 'date'
+                print('Введите дату:')
+                print('P.s. Допустимый формат: ДД-ММ-ГГГГ')
+                key_result = input()
+            elif console_1 == 2:
+                key_dict = 'category'
+                print('Введите категорию:')
+                key_result = input()
+            else:
+                key_dict = None
+                key_result = None
+
+            finance.show_list_records(key_dict, key_result)
+
+
+
 
 def main():
     menu = Menu()
@@ -925,6 +990,10 @@ def main():
             run_contact = True
             while run_contact:
                 run_contact = menu.contacts()
+        elif console == 4:
+            run_finance = True
+            while run_finance:
+                run_finance = menu.finances()
         else:
             run_menu = False
 
